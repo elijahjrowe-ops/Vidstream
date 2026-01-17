@@ -54,11 +54,6 @@
     .channel{font-size:11px;color:var(--text2)}
     .stats{font-size:11px;color:var(--text2)}
     
-    .shorts-row{display:flex;gap:10px;padding:0 12px;overflow-x:auto}
-    .short-card{width:120px;flex-shrink:0;cursor:pointer}
-    .short-thumb{width:120px;height:200px;border-radius:10px;object-fit:cover;background:var(--bg2)}
-    .short-title{font-size:11px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    
     .loader{text-align:center;padding:20px;color:var(--text2);font-size:13px;display:none}
     .loader.active{display:block}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -106,6 +101,27 @@
     .mini-btns{display:flex;gap:4px}
     .mini-btn{width:32px;height:32px;background:none;border:none;color:var(--text);cursor:pointer;font-size:16px}
     
+    /* SHORTS VIEWER */
+    .shorts-viewer{position:fixed;inset:0;background:#000;z-index:2000;display:none;flex-direction:column}
+    .shorts-viewer.active{display:flex}
+    .shorts-header{position:absolute;top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;z-index:10;background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent)}
+    .shorts-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer}
+    .shorts-container{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch}
+    .shorts-container::-webkit-scrollbar{display:none}
+    .short-item{height:100vh;height:100dvh;scroll-snap-align:start;position:relative;display:flex;align-items:center;justify-content:center;background:#000}
+    .short-video{width:100%;height:100%;max-width:400px;position:relative}
+    .short-video iframe{width:100%;height:100%;border:none}
+    .short-overlay{position:absolute;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);color:#fff}
+    .short-title{font-size:14px;font-weight:500;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .short-channel{font-size:12px;color:#ccc;display:flex;align-items:center;gap:8px}
+    .short-actions{position:absolute;right:12px;bottom:100px;display:flex;flex-direction:column;gap:16px;align-items:center}
+    .short-action{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;background:none;border:none;cursor:pointer}
+    .short-action-icon{width:44px;height:44px;background:rgba(255,255,255,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px}
+    .short-action.active .short-action-icon{background:var(--accent)}
+    .short-action span{font-size:11px}
+    .short-progress{position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.3)}
+    .short-progress-bar{height:100%;background:var(--accent);width:0%;transition:width 0.1s}
+    
     .settings-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:3000;display:none;align-items:flex-end;justify-content:center}
     .settings-modal.show{display:flex}
     .settings-box{background:var(--bg2);border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:500px;max-height:70vh;overflow-y:auto}
@@ -124,7 +140,6 @@
     .share-modal.show{display:flex}
     .share-box{background:var(--bg2);border-radius:16px;padding:20px;width:100%;max-width:320px;text-align:center}
     .share-title{font-size:16px;font-weight:600;margin-bottom:16px}
-    .qr-placeholder{width:150px;height:150px;background:var(--bg);margin:0 auto 16px;border-radius:8px;display:flex;align-items:center;justify-content:center}
     .share-url{font-size:11px;color:var(--text2);word-break:break-all;margin-bottom:12px}
     .copy-btn{padding:10px 24px;background:var(--accent);border:none;border-radius:20px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
     .close-share{margin-top:12px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px}
@@ -162,7 +177,7 @@
     </div>
   </div>
 
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" id="bottomNav">
     <button class="nav-item active" onclick="goHome()" id="navHome"><span class="nav-icon">🏠</span>Home</button>
     <button class="nav-item" onclick="showShorts()" id="navShorts"><span class="nav-icon">📱</span>Shorts</button>
     <button class="nav-item" onclick="showFavorites()" id="navFav"><span class="nav-icon">❤️</span>Favorites</button>
@@ -170,6 +185,7 @@
     <button class="nav-item" onclick="showHistory()" id="navHistory"><span class="nav-icon">🕐</span>History</button>
   </nav>
 
+  <!-- Video Player Modal -->
   <div class="modal" id="modal">
     <div class="modal-header">
       <button class="modal-back" onclick="minimizePlayer()">↓</button>
@@ -208,6 +224,17 @@
     </div>
   </div>
 
+  <!-- Shorts Viewer -->
+  <div class="shorts-viewer" id="shortsViewer">
+    <div class="shorts-header">
+      <button class="shorts-close" onclick="closeShorts()">✕</button>
+      <span style="color:#fff;font-weight:600">Shorts</span>
+      <div style="width:24px"></div>
+    </div>
+    <div class="shorts-container" id="shortsContainer"></div>
+  </div>
+
+  <!-- Settings Modal -->
   <div class="settings-modal" id="settingsModal" onclick="closeSettings(event)">
     <div class="settings-box" onclick="event.stopPropagation()">
       <div class="settings-title">Settings</div>
@@ -226,10 +253,11 @@
     </div>
   </div>
 
+  <!-- Share Modal -->
   <div class="share-modal" id="shareModal" onclick="closeShare(event)">
     <div class="share-box" onclick="event.stopPropagation()">
       <div class="share-title">Share Video</div>
-      <div class="qr-placeholder" id="qrCode">QR</div>
+      <div id="qrCode" style="margin-bottom:12px"></div>
       <div class="share-url" id="shareUrl"></div>
       <button class="copy-btn" onclick="copyLink()">📋 Copy Link</button>
       <br><button class="close-share" onclick="closeShare()">Close</button>
@@ -248,14 +276,13 @@ let isLoop=false,isShuffle=false,speedIdx=2,currentView='home',activeFilter={dat
 let favorites=JSON.parse(localStorage.getItem('vs_fav')||'[]');
 let watchLater=JSON.parse(localStorage.getItem('vs_later')||'[]');
 let history=JSON.parse(localStorage.getItem('vs_history')||'[]');
-let searchHistory=JSON.parse(localStorage.getItem('vs_search')||'[]');
 let settings=JSON.parse(localStorage.getItem('vs_settings')||'{"theme":"dark","accent":"#ff3b30","bigThumbs":false}');
+let currentShortIdx=0,shortPlayers={};
 
 function save(){
   localStorage.setItem('vs_fav',JSON.stringify(favorites));
   localStorage.setItem('vs_later',JSON.stringify(watchLater));
   localStorage.setItem('vs_history',JSON.stringify(history));
-  localStorage.setItem('vs_search',JSON.stringify(searchHistory));
   localStorage.setItem('vs_settings',JSON.stringify(settings));
 }
 
@@ -284,7 +311,6 @@ function onYouTubeIframeAPIReady(){apiReady=true}
 const fmtViews=n=>{if(!n)return'0';n=parseInt(n);return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n+''};
 const fmtDur=d=>{if(!d)return'0:00';const m=d.match(/PT(\d+H)?(\d+M)?(\d+S)?/);if(!m)return'0:00';const h=parseInt(m[1])||0,min=parseInt(m[2])||0,s=parseInt(m[3])||0;return h?`${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${min}:${String(s).padStart(2,'0')}`};
 const fmtDate=d=>{if(!d)return'';const days=Math.floor((new Date()-new Date(d))/864e5);return days>=365?Math.floor(days/365)+'y ago':days>=30?Math.floor(days/30)+'mo ago':days>=7?Math.floor(days/7)+'w ago':days>0?days+'d ago':'Today'};
-const durSec=d=>{if(!d)return 0;const m=d.match(/PT(\d+H)?(\d+M)?(\d+S)?/);if(!m)return 0;return(parseInt(m[1])||0)*3600+(parseInt(m[2])||0)*60+(parseInt(m[3])||0)};
 
 function isFav(id){return favorites.some(v=>v.id===id)}
 function isLater(id){return watchLater.some(v=>v.id===id)}
@@ -308,20 +334,14 @@ function renderFilters(){
     <button class="filter ${activeFilter.date===''?'':'active'}" onclick="setFilter('date','')">Any time</button>
     <button class="filter ${activeFilter.date==='today'?'active':''}" onclick="setFilter('date','today')">Today</button>
     <button class="filter ${activeFilter.date==='week'?'active':''}" onclick="setFilter('date','week')">This week</button>
-    <button class="filter ${activeFilter.date==='month'?'active':''}" onclick="setFilter('date','month')">This month</button>
     <button class="filter ${activeFilter.dur==='short'?'active':''}" onclick="setFilter('dur','short')">Under 4 min</button>
-    <button class="filter ${activeFilter.dur==='medium'?'active':''}" onclick="setFilter('dur','medium')">4-20 min</button>
     <button class="filter ${activeFilter.dur==='long'?'active':''}" onclick="setFilter('dur','long')">Over 20 min</button>`;
 }
 
-function setFilter(type,val){
-  activeFilter[type]=activeFilter[type]===val?'':val;
-  renderFilters();fetchVids(currentQuery);
-}
+function setFilter(type,val){activeFilter[type]=activeFilter[type]===val?'':val;renderFilters();fetchVids(currentQuery)}
 
 function renderVids(){
-  const g=document.getElementById('grid');
-  if(!g)return;
+  const g=document.getElementById('grid');if(!g)return;
   if(settings.bigThumbs)g.classList.add('big');else g.classList.remove('big');
   if(!vids.length){g.innerHTML='<div class="empty">No videos found</div>';return}
   g.innerHTML=vids.map((v,i)=>`
@@ -361,15 +381,13 @@ function quickLater(i){
 
 async function fetchVids(q='',loadMore=false){
   if(isLoading)return;isLoading=true;
-  if(!loadMore){vids=[];nextPage='';currentQuery=q||'trending';const g=document.getElementById('grid');if(g)g.innerHTML='<div class="empty">Loading...</div>'}
+  if(!loadMore){vids=[];nextPage='';currentQuery=q||'trending';const g=document.getElementById('grid');if(g)g.innerHTML='<div class="empty"><span class="spinner"></span></div>'}
   const loader=document.getElementById('loader');if(loader)loader.classList.toggle('active',loadMore);
   try{
     let url=`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(currentQuery)}&type=video&key=${API}`;
     if(activeFilter.date==='today')url+='&publishedAfter='+new Date(Date.now()-864e5).toISOString();
     else if(activeFilter.date==='week')url+='&publishedAfter='+new Date(Date.now()-7*864e5).toISOString();
-    else if(activeFilter.date==='month')url+='&publishedAfter='+new Date(Date.now()-30*864e5).toISOString();
     if(activeFilter.dur==='short')url+='&videoDuration=short';
-    else if(activeFilter.dur==='medium')url+='&videoDuration=medium';
     else if(activeFilter.dur==='long')url+='&videoDuration=long';
     if(loadMore&&nextPage)url+=`&pageToken=${nextPage}`;
     const sr=await(await fetch(url)).json();if(sr.error)throw new Error(sr.error.message);
@@ -379,7 +397,7 @@ async function fetchVids(q='',loadMore=false){
     const cids=[...new Set(dr.items.map(i=>i.snippet.channelId))].join(',');
     const cr=await(await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${cids}&key=${API}`)).json();
     const avatars={};cr.items?.forEach(c=>avatars[c.id]=c.snippet.thumbnails.default.url);
-    const newVids=dr.items.map(v=>({id:v.id,title:v.snippet.title,channel:v.snippet.channelTitle,avatar:avatars[v.snippet.channelId]||'',views:fmtViews(v.statistics.viewCount),time:fmtDate(v.snippet.publishedAt),dur:fmtDur(v.contentDetails.duration),durSec:durSec(v.contentDetails.duration),thumb:v.snippet.thumbnails.high?.url||v.snippet.thumbnails.medium?.url,embed:v.status?.embeddable!==false}));
+    const newVids=dr.items.map(v=>({id:v.id,title:v.snippet.title,channel:v.snippet.channelTitle,avatar:avatars[v.snippet.channelId]||'',views:fmtViews(v.statistics.viewCount),time:fmtDate(v.snippet.publishedAt),dur:fmtDur(v.contentDetails.duration),thumb:v.snippet.thumbnails.high?.url||v.snippet.thumbnails.medium?.url,embed:v.status?.embeddable!==false}));
     vids=loadMore?[...vids,...newVids]:newVids;renderVids();
   }catch(e){const g=document.getElementById('grid');if(g)g.innerHTML=`<div class="empty">Error: ${e.message}</div>`}
   if(loader)loader.classList.remove('active');isLoading=false;
@@ -390,25 +408,109 @@ function selCat(q){currentQuery=q;renderCats();fetchVids(q)}
 function search(e){
   e.preventDefault();
   const q=document.getElementById('q').value.trim();
-  if(q){
-    if(!searchHistory.includes(q)){searchHistory.unshift(q);searchHistory=searchHistory.slice(0,10);save()}
-    currentView='home';setNav('navHome');goHome();setTimeout(()=>{currentQuery=q;fetchVids(q)},50);
-  }
+  if(q){currentView='home';setNav('navHome');goHome();setTimeout(()=>{currentQuery=q;fetchVids(q)},50)}
 }
 
+// SHORTS
 async function showShorts(){
   currentView='shorts';setNav('navShorts');
-  document.getElementById('mainContent').innerHTML=`<div class="section-title">🔥 Shorts</div><div class="shorts-row" id="shortsRow"><span class="spinner"></span></div>`;
+  document.getElementById('bottomNav').style.display='none';
+  document.getElementById('shortsViewer').classList.add('active');
+  document.getElementById('shortsContainer').innerHTML='<div style="height:100vh;display:flex;align-items:center;justify-content:center"><span class="spinner"></span></div>';
+  
   try{
     const sr=await(await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=shorts&type=video&videoDuration=short&key=${API}`)).json();
     const ids=sr.items.map(i=>i.id.videoId).join(',');
-    const dr=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${ids}&key=${API}`)).json();
-    shorts=dr.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.high?.url}));
-    document.getElementById('shortsRow').innerHTML=shorts.map((s,i)=>`<div class="short-card" onclick="playShort(${i})"><img class="short-thumb" src="${s.thumb}"><div class="short-title">${s.title}</div></div>`).join('');
-  }catch(e){document.getElementById('shortsRow').innerHTML='<div class="empty">Error loading shorts</div>'}
+    const dr=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${API}`)).json();
+    shorts=dr.items.map(v=>({id:v.id,title:v.snippet.title,channel:v.snippet.channelTitle,thumb:v.snippet.thumbnails.high?.url,views:fmtViews(v.statistics?.viewCount),likes:fmtViews(v.statistics?.likeCount)}));
+    renderShorts();
+  }catch(e){
+    document.getElementById('shortsContainer').innerHTML='<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#fff">Error loading shorts</div>';
+  }
 }
 
-function playShort(i){vids=shorts.map(s=>({...s,channel:'',dur:'0:60',views:'',time:'',embed:true}));play(i)}
+function renderShorts(){
+  const container=document.getElementById('shortsContainer');
+  container.innerHTML=shorts.map((s,i)=>`
+    <div class="short-item" data-idx="${i}">
+      <div class="short-video">
+        <div id="shortPlayer${i}"></div>
+        <div class="short-overlay">
+          <div class="short-title">${s.title}</div>
+          <div class="short-channel">@${s.channel}</div>
+        </div>
+        <div class="short-actions">
+          <button class="short-action ${isFav(s.id)?'active':''}" onclick="toggleShortFav(${i})">
+            <div class="short-action-icon">${isFav(s.id)?'❤️':'🤍'}</div>
+            <span>${s.likes||'Like'}</span>
+          </button>
+          <button class="short-action" onclick="shareShort(${i})">
+            <div class="short-action-icon">↗️</div>
+            <span>Share</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  // Initialize first video
+  setTimeout(()=>loadShortPlayer(0),500);
+  
+  // Intersection observer for auto-play on scroll
+  const observer=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      const idx=parseInt(entry.target.dataset.idx);
+      if(entry.isIntersecting&&entry.intersectionRatio>0.7){
+        currentShortIdx=idx;
+        loadShortPlayer(idx);
+        // Pause others
+        Object.keys(shortPlayers).forEach(k=>{
+          if(parseInt(k)!==idx&&shortPlayers[k]?.pauseVideo)shortPlayers[k].pauseVideo();
+        });
+      }
+    });
+  },{threshold:[0.7]});
+  
+  document.querySelectorAll('.short-item').forEach(el=>observer.observe(el));
+}
+
+function loadShortPlayer(idx){
+  if(shortPlayers[idx])return;
+  const s=shorts[idx];
+  if(!apiReady){
+    document.getElementById(`shortPlayer${idx}`).innerHTML=`<iframe src="https://www.youtube.com/embed/${s.id}?autoplay=1&loop=1&playlist=${s.id}&controls=0&playsinline=1" style="width:100%;height:100%;border:none" allow="autoplay"></iframe>`;
+    return;
+  }
+  shortPlayers[idx]=new YT.Player(`shortPlayer${idx}`,{
+    videoId:s.id,
+    playerVars:{autoplay:1,controls:0,loop:1,playlist:s.id,playsinline:1,modestbranding:1,rel:0},
+    events:{onReady:e=>e.target.playVideo()}
+  });
+}
+
+function toggleShortFav(idx){
+  const s=shorts[idx];
+  if(isFav(s.id))favorites=favorites.filter(f=>f.id!==s.id);
+  else favorites.unshift({id:s.id,title:s.title,thumb:s.thumb,channel:s.channel,dur:'0:60'});
+  save();renderShorts();
+}
+
+function shareShort(idx){
+  const s=shorts[idx];
+  const url='https://youtube.com/shorts/'+s.id;
+  document.getElementById('shareUrl').textContent=url;
+  document.getElementById('qrCode').innerHTML=`<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}" style="border-radius:8px">`;
+  document.getElementById('shareModal').classList.add('show');
+}
+
+function closeShorts(){
+  document.getElementById('shortsViewer').classList.remove('active');
+  document.getElementById('bottomNav').style.display='flex';
+  // Stop all players
+  Object.values(shortPlayers).forEach(p=>{if(p?.destroy)p.destroy()});
+  shortPlayers={};
+  currentView='home';setNav('navHome');
+}
 
 function showFavorites(){
   currentView='favorites';setNav('navFav');
@@ -480,12 +582,8 @@ function play(i){
   document.getElementById('modal').classList.add('active');
 }
 
-function playNext(){
-  if(isShuffle)play(Math.floor(Math.random()*vids.length));
-  else play((currentIdx+1)%vids.length);
-}
+function playNext(){if(isShuffle)play(Math.floor(Math.random()*vids.length));else play((currentIdx+1)%vids.length)}
 function playPrev(){play((currentIdx-1+vids.length)%vids.length)}
-
 function toggleLoop(){isLoop=!isLoop;updatePlayerBtns()}
 function toggleShuffle(){isShuffle=!isShuffle;updatePlayerBtns()}
 function cycleSpeed(){speedIdx=(speedIdx+1)%speeds.length;if(ytPlayer)ytPlayer.setPlaybackRate(speeds[speedIdx]);updatePlayerBtns()}
@@ -527,19 +625,15 @@ function shareVideo(){
   const v=vids[currentIdx];
   const url='https://youtu.be/'+v.id;
   document.getElementById('shareUrl').textContent=url;
-  document.getElementById('qrCode').innerHTML=`<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}" width="150" height="150">`;
+  document.getElementById('qrCode').innerHTML=`<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}" style="border-radius:8px">`;
   document.getElementById('shareModal').classList.add('show');
 }
 
 function closeShare(e){if(!e||e.target.id==='shareModal')document.getElementById('shareModal').classList.remove('show')}
-function copyLink(){navigator.clipboard.writeText('https://youtu.be/'+vids[currentIdx].id);document.querySelector('.copy-btn').textContent='✓ Copied!';setTimeout(()=>document.querySelector('.copy-btn').textContent='📋 Copy Link',2000)}
+function copyLink(){const url=document.getElementById('shareUrl').textContent;navigator.clipboard.writeText(url);document.querySelector('.copy-btn').textContent='✓ Copied!';setTimeout(()=>document.querySelector('.copy-btn').textContent='📋 Copy Link',2000)}
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')closeModal();
-  if(document.getElementById('modal').classList.contains('active')){
-    if(e.key==='ArrowRight')playNext();
-    if(e.key==='ArrowLeft')playPrev();
-  }
+  if(e.key==='Escape'){closeModal();closeShorts()}
 });
 
 applySettings();
