@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VidStream</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Outfit',sans-serif;background:#0a0a0a;color:#fff;min-height:100vh}
+    .header{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 12px;z-index:1000;gap:12px}
+    .logo{display:flex;align-items:center;gap:8px}
+    .logo-text{font-size:18px;font-weight:700;color:#fff}
+    .search-form{flex:1;display:flex}
+    .search-input{flex:1;height:40px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:20px 0 0 20px;padding:0 16px;font-size:14px;color:#fff;font-family:inherit}
+    .search-input:focus{outline:none;border-color:#ff3b30}
+    .search-btn{height:40px;padding:0 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-left:none;border-radius:0 20px 20px 0;color:#888;cursor:pointer}
+    .user-btn{height:36px;padding:0 12px;background:#ff3b30;border:none;border-radius:18px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+    .user-menu{position:relative}
+    .user-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff3b30,#ff6b6b);display:flex;align-items:center;justify-content:center;font-weight:600;cursor:pointer}
+    .dropdown{position:absolute;top:45px;right:0;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px 0;min-width:160px;display:none;z-index:100}
+    .dropdown.show{display:block}
+    .dropdown-item{padding:10px 16px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
+    .dropdown-item:hover{background:rgba(255,255,255,0.05)}
+    .dropdown-divider{height:1px;background:rgba(255,255,255,0.1);margin:8px 0}
+    
+    .main{padding:68px 12px 12px}
+    .categories{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:8px}
+    .chip{padding:8px 14px;border:none;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap;background:rgba(255,255,255,0.08);color:#ddd}
+    .chip.active{background:#ff3b30;color:#fff;font-weight:600}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    .card{cursor:pointer;position:relative}
+    .thumb-wrap{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#1a1a1a}
+    .thumb{width:100%;height:100%;object-fit:cover}
+    .dur{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.85);padding:3px 6px;border-radius:4px;font-size:11px;font-weight:600}
+    .fav-btn{position:absolute;top:8px;right:8px;width:32px;height:32px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s}
+    .card:hover .fav-btn{opacity:1}
+    .fav-btn.active{color:#ff3b30;opacity:1}
+    .info{display:flex;gap:10px;padding:10px 0}
+    .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff3b30,#ff6b6b);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0}
+    .avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .meta{flex:1;min-width:0}
+    .title{font-size:14px;font-weight:500;line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .channel{font-size:12px;color:#888}
+    .stats{font-size:12px;color:#666}
+    .error{padding:12px;background:rgba(255,59,48,0.1);border:1px solid rgba(255,59,48,0.3);border-radius:8px;margin-bottom:12px;color:#ff6b6b;font-size:13px;display:none}
+    .loader{text-align:center;padding:20px;color:#888;font-size:14px;display:none}
+    .loader.active{display:block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:20px;height:20px;border:2px solid #333;border-top-color:#ff3b30;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}
+    
+    /* Auth Modal */
+    .auth-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}
+    .auth-modal.show{display:flex}
+    .auth-box{background:#1a1a1a;border-radius:16px;padding:24px;width:100%;max-width:360px}
+    .auth-title{font-size:20px;font-weight:700;margin-bottom:20px;text-align:center}
+    .auth-input{width:100%;height:44px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#fff;font-family:inherit;margin-bottom:12px}
+    .auth-input:focus{outline:none;border-color:#ff3b30}
+    .auth-btn{width:100%;height:44px;background:#ff3b30;border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}
+    .auth-switch{text-align:center;font-size:13px;color:#888}
+    .auth-switch span{color:#ff3b30;cursor:pointer}
+    .auth-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:36px;height:36px;color:#fff;cursor:pointer;font-size:18px}
+    .auth-error{color:#ff6b6b;font-size:13px;margin-bottom:12px;text-align:center}
+    
+    /* Player Modal */
+    .modal{position:fixed;inset:0;background:#000;z-index:2000;display:none;flex-direction:column;overflow-y:auto}
+    .modal.active{display:flex}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(20,20,20,0.98);position:sticky;top:0;z-index:10}
+    .modal-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin-right:12px}
+    .close{background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:36px;height:36px;color:#fff;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+    .player-wrap{aspect-ratio:16/9;background:#000;position:relative;flex-shrink:0}
+    #ytplayer{width:100%;height:100%;position:absolute;top:0;left:0}
+    .player-info{padding:16px;background:#0a0a0a}
+    .player-title{font-size:15px;font-weight:600;margin-bottom:12px;line-height:1.4}
+    .player-meta{display:flex;align-items:center;gap:12px}
+    .player-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover}
+    .player-avatar-placeholder{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff3b30,#ff6b6b);display:flex;align-items:center;justify-content:center;font-weight:600}
+    .player-channel{font-size:14px;font-weight:500}
+    .player-stats{font-size:12px;color:#888}
+    
+    .vid-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+    .action-btn{padding:10px 16px;background:rgba(255,255,255,0.08);border:none;border-radius:20px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px}
+    .action-btn:hover{background:rgba(255,255,255,0.12)}
+    .action-btn.active{background:#ff3b30}
+    
+    .vid-controls{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1)}
+    .ctrl-btn{flex:1;padding:12px;background:rgba(255,255,255,0.08);border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+    .ctrl-btn.primary{background:#ff3b30}
+    
+    /* Comments Section */
+    .comments-section{padding:16px;background:#0a0a0a;border-top:1px solid rgba(255,255,255,0.06)}
+    .comments-title{font-size:14px;font-weight:600;margin-bottom:12px}
+    .comment-form{display:flex;gap:8px;margin-bottom:16px}
+    .comment-input{flex:1;height:40px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:0 16px;font-size:13px;color:#fff;font-family:inherit}
+    .comment-input:focus{outline:none;border-color:#ff3b30}
+    .comment-submit{height:40px;padding:0 16px;background:#ff3b30;border:none;border-radius:20px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+    .comment{display:flex;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+    .comment-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#667,#445);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+    .comment-content{flex:1;min-width:0}
+    .comment-user{font-size:13px;font-weight:600;margin-bottom:2px}
+    .comment-text{font-size:13px;color:#ccc;line-height:1.4}
+    .comment-time{font-size:11px;color:#666;margin-top:4px}
+    .comment-delete{background:none;border:none;color:#666;cursor:pointer;font-size:12px;margin-left:8px}
+    .no-comments{color:#666;font-size:13px;text-align:center;padding:20px}
+    
+    /* Playlist Modal */
+    .playlist-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}
+    .playlist-modal.show{display:flex}
+    .playlist-box{background:#1a1a1a;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto}
+    .playlist-title{font-size:16px;font-weight:600;margin-bottom:16px}
+    .playlist-item{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px;cursor:pointer}
+    .playlist-item:hover{background:rgba(255,255,255,0.06)}
+    .playlist-item.selected{background:rgba(255,59,48,0.2);border:1px solid #ff3b30}
+    .playlist-name{flex:1;font-size:14px}
+    .playlist-count{font-size:12px;color:#888}
+    .create-playlist{display:flex;gap:8px;margin-top:12px}
+    .create-playlist input{flex:1;height:40px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:0 12px;font-size:13px;color:#fff;font-family:inherit}
+    .create-playlist button{height:40px;padding:0 16px;background:#ff3b30;border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+    
+    /* My Stuff Section */
+    .my-section{padding:16px 0}
+    .my-section-title{font-size:16px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+    .back-btn{padding:8px 12px;background:rgba(255,255,255,0.08);border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer}
+    .empty-msg{color:#666;text-align:center;padding:40px 20px}
+    
+    .blocked{text-align:center;padding:40px 20px}
+    .blocked h3{font-size:16px;margin:16px 0 8px}
+    .blocked p{color:#888;font-size:13px}
+    
+    @media(min-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" onclick="goHome()">
+      <svg width="28" height="20" viewBox="0 0 28 20"><rect width="28" height="20" rx="4" fill="#ff3b30"/><path d="M11 6L18 10L11 14V6Z" fill="#fff"/></svg>
+      <span class="logo-text">VidStream</span>
+    </div>
+    <form class="search-form" onsubmit="search(event)">
+      <input type="text" class="search-input" id="q" placeholder="Search...">
+      <button type="submit" class="search-btn">🔍</button>
+    </form>
+    <div id="authArea"></div>
+  </header>
+  
+  <main class="main">
+    <div id="mainContent">
+      <div class="categories" id="cats"></div>
+      <div class="error" id="err"></div>
+      <div class="grid" id="grid"></div>
+      <div class="loader" id="loader"><span class="spinner"></span>Loading more...</div>
+    </div>
+  </main>
+  
+  <!-- Auth Modal -->
+  <div class="auth-modal" id="authModal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-box">
+      <div class="auth-title" id="authTitle">Sign In</div>
+      <div class="auth-error" id="authError"></div>
+      <input type="text" class="auth-input" id="authUser" placeholder="Username">
+      <input type="password" class="auth-input" id="authPass" placeholder="Password">
+      <button class="auth-btn" id="authBtn" onclick="submitAuth()">Sign In</button>
+      <div class="auth-switch">
+        <span id="authSwitchText">Don't have an account?</span>
+        <span onclick="toggleAuthMode()">Sign Up</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Playlist Modal -->
+  <div class="playlist-modal" id="playlistModal">
+    <div class="playlist-box">
+      <div class="playlist-title">Save to Playlist</div>
+      <div id="playlistList"></div>
+      <div class="create-playlist">
+        <input type="text" id="newPlaylistName" placeholder="New playlist name">
+        <button onclick="createPlaylist()">Create</button>
+      </div>
+      <div style="margin-top:12px;text-align:right">
+        <button class="back-btn" onclick="closePlaylistModal()">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Player Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Now Playing</div>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="player-wrap" id="playerWrap"></div>
+    <div class="player-info">
+      <div class="player-title" id="pTitle"></div>
+      <div class="player-meta">
+        <div id="pAvatarWrap"></div>
+        <div><div class="player-channel" id="pChannel"></div><div class="player-stats" id="pStats"></div></div>
+      </div>
+      <div class="vid-actions" id="vidActions"></div>
+      <div class="vid-controls">
+        <button class="ctrl-btn" onclick="playPrev()">⏮ Prev</button>
+        <button class="ctrl-btn primary" onclick="playNext()">Next ⏭</button>
+      </div>
+    </div>
+    <div class="comments-section" id="commentsSection">
+      <div class="comments-title">Comments</div>
+      <div class="comment-form" id="commentForm" style="display:none">
+        <input type="text" class="comment-input" id="commentInput" placeholder="Add a comment...">
+        <button class="comment-submit" onclick="postComment()">Post</button>
+      </div>
+      <div id="commentsList"></div>
+    </div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+const API='AIzaSyAqVubsd_VmUB2E3DIi99Yw5VfInwKNBac';
+const cats=[{id:'all',name:'All',q:''},{id:'music',name:'Music',q:'music'},{id:'gaming',name:'Gaming',q:'gaming'},{id:'news',name:'News',q:'news'},{id:'sports',name:'Sports',q:'sports'},{id:'learning',name:'Learning',q:'tutorial'}];
+let active='all',vids=[],nextPage='',currentQuery='',isLoading=false,currentIdx=0,ytPlayer=null,apiReady=false;
+let user=JSON.parse(localStorage.getItem('vidstream_user')||'null');
+let userFavorites=[];
+let currentView='home';
+let savingVideoData=null;
+
+function onYouTubeIframeAPIReady(){apiReady=true}
+
+const fmtViews=n=>{if(!n)return'0';n=parseInt(n);return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toString()};
+const fmtDur=d=>{if(!d)return'0:00';const m=d.match(/PT(\d+H)?(\d+M)?(\d+S)?/);if(!m)return'0:00';const h=parseInt(m[1])||0,min=parseInt(m[2])||0,s=parseInt(m[3])||0;return h?`${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${min}:${String(s).padStart(2,'0')}`};
+const fmtDate=d=>{if(!d)return'';const days=Math.floor((new Date()-new Date(d))/864e5);return days>=365?Math.floor(days/365)+'y ago':days>=30?Math.floor(days/30)+'mo ago':days>=7?Math.floor(days/7)+'w ago':days>0?days+'d ago':'Today'};
+
+// Auth functions
+function renderAuthArea(){
+  const area=document.getElementById('authArea');
+  if(user){
+    area.innerHTML=`
+      <div class="user-menu">
+        <div class="user-avatar" onclick="toggleDropdown()">${user.username[0].toUpperCase()}</div>
+        <div class="dropdown" id="userDropdown">
+          <div class="dropdown-item" onclick="showFavorites()">❤️ Favorites</div>
+          <div class="dropdown-item" onclick="showPlaylists()">📁 Playlists</div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" onclick="logout()">🚪 Sign Out</div>
+        </div>
+      </div>`;
+  }else{
+    area.innerHTML=`<button class="user-btn" onclick="showAuth()">Sign In</button>`;
+  }
+}
+
+function toggleDropdown(){
+  document.getElementById('userDropdown').classList.toggle('show');
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.user-menu')){
+    document.getElementById('userDropdown')?.classList.remove('show');
+  }
+});
+
+let authMode='login';
+function showAuth(){
+  authMode='login';
+  document.getElementById('authTitle').textContent='Sign In';
+  document.getElementById('authBtn').textContent='Sign In';
+  document.getElementById('authError').textContent='';
+  document.getElementById('authUser').value='';
+  document.getElementById('authPass').value='';
+  document.getElementById('authModal').classList.add('show');
+}
+
+function closeAuth(){
+  document.getElementById('authModal').classList.remove('show');
+}
+
+function toggleAuthMode(){
+  authMode=authMode==='login'?'signup':'login';
+  document.getElementById('authTitle').textContent=authMode==='login'?'Sign In':'Sign Up';
+  document.getElementById('authBtn').textContent=authMode==='login'?'Sign In':'Sign Up';
+  document.getElementById('authError').textContent='';
+}
+
+async function submitAuth(){
+  const username=document.getElementById('authUser').value.trim();
+  const password=document.getElementById('authPass').value;
+  
+  if(!username||!password){
+    document.getElementById('authError').textContent='Please fill in all fields';
+    return;
+  }
+  
+  try{
+    const res=await fetch('/.netlify/functions/auth',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:authMode,username,password})
+    });
+    const data=await res.json();
+    
+    if(data.error){
+      document.getElementById('authError').textContent=data.error;
+      return;
+    }
+    
+    user=data.user;
+    localStorage.setItem('vidstream_user',JSON.stringify(user));
+    closeAuth();
+    renderAuthArea();
+    loadUserFavorites();
+  }catch(e){
+    document.getElementById('authError').textContent='Connection error. Try again.';
+  }
+}
+
+function logout(){
+  user=null;
+  userFavorites=[];
+  localStorage.removeItem('vidstream_user');
+  renderAuthArea();
+  if(currentView!=='home')goHome();
+}
+
+// Favorites
+async function loadUserFavorites(){
+  if(!user)return;
+  try{
+    const res=await fetch(`/.netlify/functions/favorites?userId=${user.id}`);
+    const data=await res.json();
+    userFavorites=data.favorites||[];
+  }catch(e){}
+}
+
+function isFavorite(videoId){
+  return userFavorites.some(f=>f.video_id===videoId);
+}
+
+async function toggleFavorite(e,idx){
+  e.stopPropagation();
+  if(!user){showAuth();return}
+  
+  const v=vids[idx];
+  const isFav=isFavorite(v.id);
+  
+  try{
+    await fetch('/.netlify/functions/favorites',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        userId:user.id,
+        videoId:v.id,
+        videoTitle:v.title,
+        videoThumb:v.thumb,
+        videoChannel:v.channel,
+        action:isFav?'remove':'add'
+      })
+    });
+    
+    if(isFav){
+      userFavorites=userFavorites.filter(f=>f.video_id!==v.id);
+    }else{
+      userFavorites.push({video_id:v.id,video_title:v.title,video_thumb:v.thumb,video_channel:v.channel});
+    }
+    renderVids();
+  }catch(e){}
+}
+
+async function toggleFavoritePlayer(){
+  if(!user){showAuth();return}
+  const v=vids[currentIdx];
+  const isFav=isFavorite(v.id);
+  
+  try{
+    await fetch('/.netlify/functions/favorites',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        userId:user.id,
+        videoId:v.id,
+        videoTitle:v.title,
+        videoThumb:v.thumb,
+        videoChannel:v.channel,
+        action:isFav?'remove':'add'
+      })
+    });
+    
+    if(isFav){
+      userFavorites=userFavorites.filter(f=>f.video_id!==v.id);
+    }else{
+      userFavorites.push({video_id:v.id});
+    }
+    updateVidActions();
+  }catch(e){}
+}
+
+// Playlists
+function openPlaylistModal(){
+  if(!user){showAuth();return}
+  savingVideoData=vids[currentIdx];
+  loadPlaylistsForModal();
+  document.getElementById('playlistModal').classList.add('show');
+}
+
+function closePlaylistModal(){
+  document.getElementById('playlistModal').classList.remove('show');
+}
+
+async function loadPlaylistsForModal(){
+  try{
+    const res=await fetch(`/.netlify/functions/playlists?userId=${user.id}`);
+    const data=await res.json();
+    const list=document.getElementById('playlistList');
+    
+    if(!data.playlists||data.playlists.length===0){
+      list.innerHTML='<div class="empty-msg">No playlists yet</div>';
+      return;
+    }
+    
+    list.innerHTML=data.playlists.map(p=>`
+      <div class="playlist-item" onclick="addToPlaylist(${p.id})">
+        <div class="playlist-name">${p.name}</div>
+        <div class="playlist-count">${p.video_count} videos</div>
+      </div>
+    `).join('');
+  }catch(e){
+    document.getElementById('playlistList').innerHTML='<div class="empty-msg">Error loading playlists</div>';
+  }
+}
+
+async function createPlaylist(){
+  const name=document.getElementById('newPlaylistName').value.trim();
+  if(!name)return;
+  
+  try{
+    await fetch('/.netlify/functions/playlists',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'create',userId:user.id,name})
+    });
+    document.getElementById('newPlaylistName').value='';
+    loadPlaylistsForModal();
+  }catch(e){}
+}
+
+async function addToPlaylist(playlistId){
+  const v=savingVideoData;
+  try{
+    await fetch('/.netlify/functions/playlists',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'addVideo',
+        playlistId,
+        videoId:v.id,
+        videoTitle:v.title,
+        videoThumb:v.thumb,
+        videoChannel:v.channel
+      })
+    });
+    closePlaylistModal();
+  }catch(e){}
+}
+
+// Comments
+async function loadComments(videoId){
+  const list=document.getElementById('commentsList');
+  list.innerHTML='<div class="spinner"></div>';
+  
+  try{
+    const res=await fetch(`/.netlify/functions/comments?videoId=${videoId}`);
+    const data=await res.json();
+    
+    if(!data.comments||data.comments.length===0){
+      list.innerHTML='<div class="no-comments">No comments yet. Be the first!</div>';
+      return;
+    }
+    
+    list.innerHTML=data.comments.map(c=>`
+      <div class="comment">
+        <div class="comment-avatar">${c.username[0].toUpperCase()}</div>
+        <div class="comment-content">
+          <div class="comment-user">${c.username}${user&&user.id===c.user_id?`<button class="comment-delete" onclick="deleteComment(${c.id})">🗑️</button>`:''}</div>
+          <div class="comment-text">${c.comment}</div>
+          <div class="comment-time">${fmtDate(c.created_at)}</div>
+        </div>
+      </div>
+    `).join('');
+  }catch(e){
+    list.innerHTML='<div class="no-comments">Error loading comments</div>';
+  }
+}
+
+async function postComment(){
+  const input=document.getElementById('commentInput');
+  const comment=input.value.trim();
+  if(!comment||!user)return;
+  
+  const v=vids[currentIdx];
+  try{
+    await fetch('/.netlify/functions/comments',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'add',userId:user.id,videoId:v.id,comment})
+    });
+    input.value='';
+    loadComments(v.id);
+  }catch(e){}
+}
+
+async function deleteComment(commentId){
+  try{
+    await fetch('/.netlify/functions/comments',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'delete',userId:user.id,commentId})
+    });
+    loadComments(vids[currentIdx].id);
+  }catch(e){}
+}
+
+// Views
+function goHome(){
+  currentView='home';
+  document.getElementById('mainContent').innerHTML=`
+    <div class="categories" id="cats"></div>
+    <div class="error" id="err"></div>
+    <div class="grid" id="grid"></div>
+    <div class="loader" id="loader"><span class="spinner"></span>Loading more...</div>
+  `;
+  renderCats();
+  fetchVids();
+}
+
+async function showFavorites(){
+  document.getElementById('userDropdown')?.classList.remove('show');
+  if(!user)return;
+  currentView='favorites';
+  
+  document.getElementById('mainContent').innerHTML=`
+    <div class="my-section">
+      <div class="my-section-title">
+        ❤️ My Favorites
+        <button class="back-btn" onclick="goHome()">← Back</button>
+      </div>
+      <div class="grid" id="grid"><div class="spinner"></div></div>
+    </div>
+  `;
+  
+  try{
+    const res=await fetch(`/.netlify/functions/favorites?userId=${user.id}`);
+    const data=await res.json();
+    
+    if(!data.favorites||data.favorites.length===0){
+      document.getElementById('grid').innerHTML='<div class="empty-msg" style="grid-column:1/-1">No favorites yet. Heart some videos!</div>';
+      return;
+    }
+    
+    vids=data.favorites.map(f=>({
+      id:f.video_id,
+      title:f.video_title,
+      thumb:f.video_thumb,
+      channel:f.video_channel,
+      dur:'--:--',
+      views:'',
+      time:'',
+      embed:true
+    }));
+    renderVids();
+  }catch(e){
+    document.getElementById('grid').innerHTML='<div class="empty-msg" style="grid-column:1/-1">Error loading favorites</div>';
+  }
+}
+
+async function showPlaylists(){
+  document.getElementById('userDropdown')?.classList.remove('show');
+  if(!user)return;
+  currentView='playlists';
+  
+  document.getElementById('mainContent').innerHTML=`
+    <div class="my-section">
+      <div class="my-section-title">
+        📁 My Playlists
+        <button class="back-btn" onclick="goHome()">← Back</button>
+      </div>
+      <div id="playlistsGrid"><div class="spinner"></div></div>
+    </div>
+  `;
+  
+  try{
+    const res=await fetch(`/.netlify/functions/playlists?userId=${user.id}`);
+    const data=await res.json();
+    
+    if(!data.playlists||data.playlists.length===0){
+      document.getElementById('playlistsGrid').innerHTML='<div class="empty-msg">No playlists yet</div>';
+      return;
+    }
+    
+    document.getElementById('playlistsGrid').innerHTML=data.playlists.map(p=>`
+      <div class="playlist-item" onclick="showPlaylist(${p.id},'${p.name.replace(/'/g,"\\'")}')">
+        <div class="playlist-name">${p.name}</div>
+        <div class="playlist-count">${p.video_count} videos</div>
+      </div>
+    `).join('');
+  }catch(e){
+    document.getElementById('playlistsGrid').innerHTML='<div class="empty-msg">Error loading playlists</div>';
+  }
+}
+
+async function showPlaylist(id,name){
+  document.getElementById('mainContent').innerHTML=`
+    <div class="my-section">
+      <div class="my-section-title">
+        📁 ${name}
+        <button class="back-btn" onclick="showPlaylists()">← Back</button>
+      </div>
+      <div class="grid" id="grid"><div class="spinner"></div></div>
+    </div>
+  `;
+  
+  try{
+    const res=await fetch(`/.netlify/functions/playlists?playlistId=${id}`);
+    const data=await res.json();
+    
+    if(!data.videos||data.videos.length===0){
+      document.getElementById('grid').innerHTML='<div class="empty-msg" style="grid-column:1/-1">This playlist is empty</div>';
+      return;
+    }
+    
+    vids=data.videos.map(v=>({
+      id:v.video_id,
+      title:v.video_title,
+      thumb:v.video_thumb,
+      channel:v.video_channel,
+      dur:'--:--',
+      views:'',
+      time:'',
+      embed:true
+    }));
+    renderVids();
+  }catch(e){
+    document.getElementById('grid').innerHTML='<div class="empty-msg" style="grid-column:1/-1">Error loading playlist</div>';
+  }
+}
+
+// Render functions
+function renderCats(){
+  const el=document.getElementById('cats');
+  if(el)el.innerHTML=cats.map(c=>`<button class="chip ${active===c.id?'active':''}" onclick="selCat('${c.id}')">${c.name}</button>`).join('');
+}
+
+function renderVids(){
+  const g=document.getElementById('grid');
+  if(!g)return;
+  if(!vids.length){g.innerHTML='<p style="color:#666;text-align:center;grid-column:1/-1;padding:40px">No videos found</p>';return}
+  g.innerHTML=vids.map((v,i)=>`
+    <div class="card" onclick="play(${i})">
+      <div class="thumb-wrap">
+        <img class="thumb" src="${v.thumb}" loading="lazy">
+        <span class="dur">${v.dur}</span>
+        ${user?`<button class="fav-btn ${isFavorite(v.id)?'active':''}" onclick="toggleFavorite(event,${i})">${isFavorite(v.id)?'❤️':'🤍'}</button>`:''}
+      </div>
+      <div class="info">
+        ${v.avatar?`<div class="avatar"><img src="${v.avatar}"></div>`:`<div class="avatar">${(v.channel||'?')[0]}</div>`}
+        <div class="meta">
+          <div class="title">${v.title}</div>
+          <div class="channel">${v.channel||''}</div>
+          <div class="stats">${v.views?v.views+' • ':''}${v.time||''}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function fetchVids(q='',cq='',loadMore=false){
+  if(isLoading)return;
+  isLoading=true;
+  
+  if(!loadMore){
+    vids=[];
+    nextPage='';
+    currentQuery=q||cq||'trending';
+    const g=document.getElementById('grid');
+    if(g)g.innerHTML='<p style="color:#666;text-align:center;grid-column:1/-1;padding:40px">Loading...</p>';
+  }
+  
+  const loader=document.getElementById('loader');
+  if(loader)loader.classList.toggle('active',loadMore);
+  const err=document.getElementById('err');
+  if(err)err.style.display='none';
+  
+  try{
+    let url=`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(currentQuery)}&type=video&key=${API}`;
+    if(loadMore&&nextPage)url+=`&pageToken=${nextPage}`;
+    
+    const sr=await(await fetch(url)).json();
+    if(sr.error)throw new Error(sr.error.message);
+    
+    nextPage=sr.nextPageToken||'';
+    const ids=sr.items.map(i=>i.id.videoId).join(',');
+    const dr=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics,status&id=${ids}&key=${API}`)).json();
+    const cids=[...new Set(dr.items.map(i=>i.snippet.channelId))].join(',');
+    const cr=await(await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${cids}&key=${API}`)).json();
+    const avatars={};cr.items?.forEach(c=>avatars[c.id]=c.snippet.thumbnails.default.url);
+    
+    const newVids=dr.items.map(v=>({id:v.id,title:v.snippet.title,channel:v.snippet.channelTitle,avatar:avatars[v.snippet.channelId]||'',views:fmtViews(v.statistics.viewCount),time:fmtDate(v.snippet.publishedAt),dur:fmtDur(v.contentDetails.duration),thumb:v.snippet.thumbnails.high?.url||v.snippet.thumbnails.medium?.url,embed:v.status?.embeddable!==false}));
+    
+    vids=loadMore?[...vids,...newVids]:newVids;
+    renderVids();
+  }catch(e){
+    const err=document.getElementById('err');
+    if(err){err.textContent=e.message;err.style.display='block';}
+    if(!loadMore){vids=[];renderVids()}
+  }
+  
+  const loader2=document.getElementById('loader');
+  if(loader2)loader2.classList.remove('active');
+  isLoading=false;
+}
+
+window.addEventListener('scroll',()=>{
+  if(isLoading||!nextPage||currentView!=='home')return;
+  if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500){
+    fetchVids('','',true);
+  }
+});
+
+function selCat(id){active=id;renderCats();fetchVids('',cats.find(c=>c.id===id).q)}
+function search(e){e.preventDefault();const q=document.getElementById('q').value.trim();if(q){active='all';currentView='home';goHome();setTimeout(()=>fetchVids(q),100)}}
+
+function onPlayerStateChange(event){
+  if(event.data===YT.PlayerState.ENDED)playNext();
+}
+
+function updateVidActions(){
+  const v=vids[currentIdx];
+  const isFav=isFavorite(v.id);
+  document.getElementById('vidActions').innerHTML=`
+    <button class="action-btn ${isFav?'active':''}" onclick="toggleFavoritePlayer()">${isFav?'❤️ Favorited':'🤍 Favorite'}</button>
+    <button class="action-btn" onclick="openPlaylistModal()">📁 Save</button>
+  `;
+}
+
+function play(i){
+  currentIdx=i;
+  const v=vids[i];
+  
+  document.getElementById('modalTitle').textContent=v.title;
+  document.getElementById('pTitle').textContent=v.title;
+  document.getElementById('pChannel').textContent=v.channel||'';
+  document.getElementById('pStats').textContent=(v.views?v.views+' • ':'')+v.time;
+  document.getElementById('pAvatarWrap').innerHTML=v.avatar?`<img class="player-avatar" src="${v.avatar}">`:`<div class="player-avatar-placeholder">${(v.channel||'?')[0]}</div>`;
+  
+  updateVidActions();
+  
+  document.getElementById('commentForm').style.display=user?'flex':'none';
+  loadComments(v.id);
+  
+  const w=document.getElementById('playerWrap');
+  if(v.embed&&apiReady){
+    w.innerHTML='<div id="ytplayer"></div>';
+    if(ytPlayer){ytPlayer.destroy();ytPlayer=null}
+    ytPlayer=new YT.Player('ytplayer',{
+      videoId:v.id,
+      playerVars:{autoplay:1,controls:1,modestbranding:1,rel:0,showinfo:0,iv_load_policy:3,fs:1,playsinline:1},
+      events:{onStateChange:onPlayerStateChange}
+    });
+  }else if(v.embed){
+    w.innerHTML=`<iframe id="ytplayer" src="https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1" style="width:100%;height:100%;border:none" allowfullscreen allow="autoplay"></iframe>`;
+  }else{
+    w.innerHTML=`<div class="blocked"><div style="font-size:48px">🔒</div><h3>This video can't play here</h3><p>Tap "Next" to watch another video</p></div>`;
+  }
+  
+  document.getElementById('modal').classList.add('active');
+}
+
+function playNext(){play((currentIdx+1)%vids.length)}
+function playPrev(){play((currentIdx-1+vids.length)%vids.length)}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('active');
+  if(ytPlayer&&ytPlayer.destroy){ytPlayer.destroy();ytPlayer=null}
+  document.getElementById('playerWrap').innerHTML='';
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModal();
+  if(document.getElementById('modal').classList.contains('active')){
+    if(e.key==='ArrowRight')playNext();
+    if(e.key==='ArrowLeft')playPrev();
+  }
+});
+
+// Init
+renderAuthArea();
+if(user)loadUserFavorites();
+renderCats();
+fetchVids();
+
+// Setup database on first visit
+if(!localStorage.getItem('vidstream_setup')){
+  fetch('/.netlify/functions/setup').then(()=>localStorage.setItem('vidstream_setup','1')).catch(()=>{});
+}
+</script>
+</body>
+</html>
