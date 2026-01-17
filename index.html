@@ -89,7 +89,6 @@
     .mini-btns{display:flex;gap:2px}
     .mini-btn{width:30px;height:30px;background:none;border:none;color:var(--text);cursor:pointer;font-size:14px}
     
-    /* SHORTS - FIXED */
     .shorts-viewer{position:fixed;inset:0;background:#000;z-index:2000;display:none}
     .shorts-viewer.active{display:block}
     .shorts-header{position:fixed;top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;align-items:center;z-index:10;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent)}
@@ -245,6 +244,7 @@
   <script>
 const API='AIzaSyAqVubsd_VmUB2E3DIi99Yw5VfInwKNBac';
 const defaultCats=['gaming','music','sports','news','comedy','tech','cooking'];
+const shortsCats=['funny shorts','viral shorts','trending shorts','music shorts','gaming shorts','comedy shorts','satisfying shorts'];
 const accents=['#ff3b30','#007aff','#af52de','#34c759','#ff9500'];
 const speeds=[0.5,0.75,1,1.25,1.5,2];
 
@@ -256,10 +256,8 @@ let history=JSON.parse(localStorage.getItem('vs_history')||'[]');
 let settings=JSON.parse(localStorage.getItem('vs_settings')||'{"theme":"dark","accent":"#ff3b30"}');
 let prefs=JSON.parse(localStorage.getItem('vs_prefs')||'{"topics":{},"channels":{}}');
 
-// SHORTS PLAYERS
 let shortPlayers={};
 let currentShortIdx=0;
-let shortsReady=false;
 
 function save(){
   localStorage.setItem('vs_fav',JSON.stringify(favorites));
@@ -270,7 +268,8 @@ function save(){
 }
 
 function learnFromVideo(v){
-  const words=(v.title||'').toLowerCase().replace(/[^a-z0-9\s]/g,'').split(' ').filter(w=>w.length>3);
+  if(!v||!v.title)return;
+  const words=v.title.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(' ').filter(w=>w.length>3);
   words.forEach(w=>{prefs.topics[w]=(prefs.topics[w]||0)+1});
   if(v.channel)prefs.channels[v.channel]=(prefs.channels[v.channel]||0)+1;
   save();
@@ -280,6 +279,14 @@ function getPersonalizedQueries(){
   const topTopics=Object.entries(prefs.topics).sort((a,b)=>b[1]-a[1]).slice(0,5).map(t=>t[0]);
   if(topTopics.length<2)return defaultCats.slice(0,3);
   return[...topTopics.slice(0,3),defaultCats[Math.floor(Math.random()*defaultCats.length)]];
+}
+
+function getPersonalizedShortsQuery(){
+  const topTopics=Object.entries(prefs.topics).sort((a,b)=>b[1]-a[1]).slice(0,3).map(t=>t[0]);
+  if(topTopics.length>0){
+    return topTopics[Math.floor(Math.random()*topTopics.length)]+' shorts';
+  }
+  return shortsCats[Math.floor(Math.random()*shortsCats.length)];
 }
 
 function resetPrefs(){prefs={topics:{},channels:{}};save();alert('Reset!');goHome()}
@@ -302,7 +309,7 @@ function setAccent(c){settings.accent=c;applySettings();save()}
 function openSettings(){document.getElementById('settingsModal').classList.add('show')}
 function closeSettings(e){if(!e||e.target.id==='settingsModal')document.getElementById('settingsModal').classList.remove('show')}
 
-function onYouTubeIframeAPIReady(){apiReady=true;shortsReady=true}
+function onYouTubeIframeAPIReady(){apiReady=true}
 
 const fmtViews=n=>{if(!n)return'0';n=parseInt(n);return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n+''};
 const fmtDur=d=>{if(!d)return'0:00';const m=d.match(/PT(\d+H)?(\d+M)?(\d+S)?/);if(!m)return'0:00';const h=parseInt(m[1])||0,min=parseInt(m[2])||0,s=parseInt(m[3])||0;return h?`${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${min}:${String(s).padStart(2,'0')}`};
@@ -422,7 +429,7 @@ function quickLater(i){const v=vids[i];if(isLater(v.id))watchLater=watchLater.fi
 function selCat(q){currentQuery=q;renderCats();if(q==='')fetchPersonalizedFeed();else fetchVids(q)}
 function search(e){e.preventDefault();const q=document.getElementById('q').value.trim();if(q){currentView='home';goHome();setTimeout(()=>fetchVids(q),100)}}
 
-// ========== SHORTS - INSTANT SWITCH ==========
+// ========== SHORTS ==========
 async function showShorts(){
   currentView='shorts';setNav('navShorts');
   document.getElementById('bottomNav').style.display='none';
@@ -433,29 +440,70 @@ async function showShorts(){
   Object.values(shortPlayers).forEach(p=>{try{p.destroy()}catch(e){}});
   shortPlayers={};
   
-  const queries=getPersonalizedQueries();
-  const shortQuery=queries[0]+' shorts';
+  // Get a good shorts query
+  const shortQuery=getPersonalizedShortsQuery();
+  console.log('Loading shorts:',shortQuery);
   
   try{
-    const sr=await(await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(shortQuery)}&type=video&videoDuration=short&key=${API}`)).json();
-    const ids=sr.items.map(i=>i.id.videoId).join(',');
+    const searchUrl=`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(shortQuery)}&type=video&videoDuration=short&key=${API}`;
+    console.log('Search URL:',searchUrl);
+    
+    const sr=await fetch(searchUrl);
+    const searchData=await sr.json();
+    
+    console.log('Search response:',searchData);
+    
+    if(searchData.error){
+      throw new Error(searchData.error.message);
+    }
+    
+    if(!searchData.items||searchData.items.length===0){
+      throw new Error('No shorts found');
+    }
+    
+    const ids=searchData.items.map(i=>i.id?.videoId).filter(Boolean).join(',');
+    console.log('Video IDs:',ids);
+    
+    if(!ids){
+      throw new Error('No valid video IDs');
+    }
+    
     const dr=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${API}`)).json();
+    console.log('Videos response:',dr);
+    
+    if(!dr.items||dr.items.length===0){
+      throw new Error('Could not load video details');
+    }
     
     shorts=dr.items.map(v=>({
       id:v.id,
       title:v.snippet.title,
       channel:v.snippet.channelTitle,
-      thumb:v.snippet.thumbnails.high?.url,
+      thumb:v.snippet.thumbnails.high?.url||v.snippet.thumbnails.medium?.url||v.snippet.thumbnails.default?.url,
       likes:fmtViews(v.statistics?.likeCount)
     }));
+    
+    console.log('Shorts loaded:',shorts.length);
+    
+    if(shorts.length===0){
+      throw new Error('No shorts available');
+    }
     
     currentShortIdx=0;
     renderShortsUI();
     
     // Wait for DOM then create players
-    setTimeout(()=>initShortPlayers(),300);
+    setTimeout(()=>initShortPlayers(),500);
+    
   }catch(e){
-    document.getElementById('shortsContainer').innerHTML='<div class="short-item" style="color:#fff;display:flex;align-items:center;justify-content:center">Error loading shorts</div>';
+    console.error('Shorts error:',e);
+    document.getElementById('shortsContainer').innerHTML=`
+      <div class="short-item" style="color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+        <div style="font-size:48px">😕</div>
+        <div style="font-size:16px">Couldn't load shorts</div>
+        <div style="font-size:12px;color:#888">${e.message}</div>
+        <button onclick="showShorts()" style="padding:12px 24px;background:var(--accent);border:none;border-radius:20px;color:#fff;font-size:14px;cursor:pointer">Try Again</button>
+      </div>`;
   }
 }
 
@@ -486,13 +534,16 @@ function renderShortsUI(){
   
   // Add click to pause/play
   shorts.forEach((s,i)=>{
-    document.getElementById(`shortItem${i}`).addEventListener('click',e=>{
-      if(e.target.closest('.short-action'))return;
-      toggleShortPause(i);
-    });
+    const item=document.getElementById(`shortItem${i}`);
+    if(item){
+      item.addEventListener('click',e=>{
+        if(e.target.closest('.short-action'))return;
+        toggleShortPause(i);
+      });
+    }
   });
   
-  // Scroll observer - INSTANT switch
+  // Scroll observer
   const observer=new IntersectionObserver((entries)=>{
     entries.forEach(entry=>{
       const idx=parseInt(entry.target.dataset.idx);
@@ -506,51 +557,70 @@ function renderShortsUI(){
 }
 
 function initShortPlayers(){
-  if(!apiReady)return;
-  
-  // Create all players but paused
-  shorts.forEach((s,i)=>{
-    shortPlayers[i]=new YT.Player(`shortPlayer${i}`,{
-      videoId:s.id,
-      playerVars:{
-        autoplay:0,
-        controls:0,
-        loop:1,
-        playlist:s.id,
-        playsinline:1,
-        modestbranding:1,
-        rel:0,
-        showinfo:0,
-        iv_load_policy:3
-      },
-      events:{
-        onReady:()=>{
-          // Start first video
-          if(i===0)shortPlayers[0]?.playVideo();
-        },
-        onStateChange:(e)=>{
-          // Loop when ended
-          if(e.data===YT.PlayerState.ENDED){
-            shortPlayers[i]?.seekTo(0);
-            shortPlayers[i]?.playVideo();
-          }
-        }
+  if(!apiReady){
+    console.log('YT API not ready, using iframes');
+    // Fallback to iframes
+    shorts.forEach((s,i)=>{
+      const el=document.getElementById(`shortPlayer${i}`);
+      if(el){
+        el.innerHTML=`<iframe src="https://www.youtube.com/embed/${s.id}?autoplay=${i===0?1:0}&loop=1&playlist=${s.id}&controls=0&playsinline=1&mute=0" style="width:100%;height:100%;border:none" allow="autoplay;encrypted-media"></iframe>`;
       }
     });
+    return;
+  }
+  
+  console.log('Creating YT players for',shorts.length,'shorts');
+  
+  shorts.forEach((s,i)=>{
+    try{
+      shortPlayers[i]=new YT.Player(`shortPlayer${i}`,{
+        videoId:s.id,
+        playerVars:{
+          autoplay:i===0?1:0,
+          controls:0,
+          loop:1,
+          playlist:s.id,
+          playsinline:1,
+          modestbranding:1,
+          rel:0,
+          showinfo:0,
+          iv_load_policy:3,
+          mute:0
+        },
+        events:{
+          onReady:(e)=>{
+            console.log('Player',i,'ready');
+            if(i===0)e.target.playVideo();
+          },
+          onStateChange:(e)=>{
+            if(e.data===YT.PlayerState.ENDED){
+              shortPlayers[i]?.seekTo(0);
+              shortPlayers[i]?.playVideo();
+            }
+          },
+          onError:(e)=>{
+            console.log('Player',i,'error:',e.data);
+          }
+        }
+      });
+    }catch(err){
+      console.error('Failed to create player',i,err);
+    }
   });
 }
 
 function switchToShort(idx){
   if(idx===currentShortIdx)return;
+  console.log('Switching from',currentShortIdx,'to',idx);
   
-  // INSTANTLY pause previous
+  // Pause previous
   const prevPlayer=shortPlayers[currentShortIdx];
   if(prevPlayer?.pauseVideo){
     prevPlayer.pauseVideo();
     prevPlayer.seekTo(0);
   }
   
-  // INSTANTLY play new
+  // Play new
   currentShortIdx=idx;
   const newPlayer=shortPlayers[idx];
   if(newPlayer?.playVideo){
@@ -558,28 +628,25 @@ function switchToShort(idx){
     newPlayer.playVideo();
   }
   
-  // Learn from this short
-  learnFromVideo(shorts[idx]);
+  // Learn
+  if(shorts[idx])learnFromVideo(shorts[idx]);
   
-  // Hide pause icon
+  // Hide pause icons
   document.querySelectorAll('.short-paused').forEach(el=>el.classList.remove('show'));
 }
 
-let shortPaused=false;
 function toggleShortPause(idx){
   const player=shortPlayers[idx];
-  if(!player)return;
+  if(!player||!player.getPlayerState)return;
   
   const state=player.getPlayerState();
   const pauseIcon=document.getElementById(`shortPaused${idx}`);
   
-  if(state===YT.PlayerState.PLAYING){
+  if(state===1){// Playing
     player.pauseVideo();
-    shortPaused=true;
     pauseIcon?.classList.add('show');
   }else{
     player.playVideo();
-    shortPaused=false;
     pauseIcon?.classList.remove('show');
   }
 }
@@ -589,12 +656,8 @@ function toggleShortFav(i){
   if(isFav(s.id))favorites=favorites.filter(f=>f.id!==s.id);
   else favorites.unshift({id:s.id,title:s.title,thumb:s.thumb,channel:s.channel,dur:'0:60'});
   save();
-  // Update button
-  const btn=document.querySelectorAll('.short-action')[i*2];
-  if(btn){
-    btn.classList.toggle('active',isFav(s.id));
-    btn.querySelector('.short-action-icon').textContent=isFav(s.id)?'❤️':'🤍';
-  }
+  renderShortsUI();
+  setTimeout(()=>initShortPlayers(),300);
 }
 
 function shareShort(i){
@@ -603,10 +666,8 @@ function shareShort(i){
 }
 
 function closeShorts(){
-  // Stop all players
   Object.values(shortPlayers).forEach(p=>{try{p.destroy()}catch(e){}});
   shortPlayers={};
-  
   document.getElementById('shortsViewer').classList.remove('active');
   document.getElementById('bottomNav').style.display='flex';
   currentView='home';setNav('navHome');
